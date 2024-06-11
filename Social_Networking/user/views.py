@@ -56,7 +56,8 @@ class UserSearchView(generics.ListAPIView):
     def get_queryset(self):
         keyword = self.request.query_params.get('q', None)
         if keyword:
-            return MyUser.objects.filter(Q(email__iexact=keyword) | Q(name__icontains=keyword))
+            q = MyUser.objects.filter(Q(email__icontains=keyword))
+            return q
         return MyUser.objects.none()
     
 class SendFriendRequestView(APIView):
@@ -99,3 +100,21 @@ class RespondToFriendRequestView(APIView):
             return Response({"success": f"Friend request {response}ed."}, status=status.HTTP_200_OK)
         except FriendRequest.DoesNotExist:
             return Response({"error": "Friend request not found."}, status=status.HTTP_404_NOT_FOUND)
+
+class ListFriendsView(generics.ListAPIView):
+    serializer_class = FriendListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        friends = Friend.objects.filter(current_user=user).first()
+        if friends:
+            return friends.users.all()
+        return MyUser.objects.none()
+
+class ListPendingRequestsView(generics.ListAPIView):
+    serializer_class = FriendRequestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return FriendRequest.objects.filter(to_user=self.request.user, status='pending')
